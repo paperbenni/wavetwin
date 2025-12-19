@@ -158,6 +158,66 @@ def find_best_match(group):
     return best_entry
 
 
+# Similarity thresholds for duplicate detection
+SIMILARITY_THRESHOLD = 0.80
+SIMILARITY_QUICK_THRESHOLD = 0.6
+DURATION_TOLERANCE_SECONDS = 3.0
+
+
+def _parse_fingerprint_row(row):
+    """Parse a single fingerprint row from database."""
+    try:
+        track_id, path, name, size, duration, fp_str, bitrate, sample_rate = row
+        if not fp_str:
+            return None
+        # Handle potential empty strings or nulls
+        fp_list = [int(x) for x in fp_str.split(",") if x.strip()]
+        if not fp_list:
+            return None
+        return {
+            "id": track_id,
+            "data": (path, name, size, bitrate, duration),
+            "sample_rate": sample_rate,
+            "fingerprint": fp_list,
+            "duration": duration,
+        }
+    except Exception:
+        return None
+
+
+def _are_fingerprints_similar(fp1, fp2):
+    """Check if two fingerprints are similar enough to be duplicates."""
+    matcher = SequenceMatcher(None, fp1, fp2)
+
+    # Quick check first
+    if matcher.quick_ratio() < SIMILARITY_QUICK_THRESHOLD:
+        return False
+
+    return matcher.ratio() > SIMILARITY_THRESHOLD
+
+
+def _find_duplicate_group(item, all_items, start_index, processed_ids):
+    """Find all duplicates for a given item."""
+    group = [item]
+
+    for j in range(start_index + 1, len(all_items)):
+        item2 = all_items[j]
+
+        # Since rows are sorted by duration, stop if difference is too large
+        if item2["duration"] - item["duration"] > DURATION_TOLERANCE_SECONDS:
+            break
+
+        if item2["id"] in processed_ids:
+            continue
+
+        # Similarity check
+        if _are_fingerprints_similar(item["fingerprint"], item2["fingerprint"]):
+            group.append(item2)
+            processed_ids.add(item2["id"])
+
+    return group
+
+
 def analysis_phase(conn):
     """Analyze database for duplicates."""
     print("Analyzing for duplicates...")
@@ -170,63 +230,25 @@ def analysis_phase(conn):
         return []
 
     # Parse fingerprints once
-    parsed_rows = []
-    for row in rows:
-        try:
-            track_id, path, name, size, duration, fp_str, bitrate, sample_rate = row
-            if not fp_str:
-                continue
-            # Handle potential empty strings or nulls
-            fp_list = [int(x) for x in fp_str.split(",") if x.strip()]
-            if not fp_list:
-                continue
-            parsed_rows.append(
-                {
-                    "id": track_id,
-                    "data": (path, name, size, bitrate, duration),
-                    "sample_rate": sample_rate,
-                    "fingerprint": fp_list,
-                    "duration": duration,
-                }
-            )
-        except Exception:
-            continue
+    parsed_rows = [_parse_fingerprint_row(row) for row in rows]
+    parsed_rows = [row for row in parsed_rows if row is not None]
 
     groups = []
     processed_ids = set()
     total = len(parsed_rows)
 
-    for i in range(total):
-        item1 = parsed_rows[i]
-        if item1["id"] in processed_ids:
-            continue
+    with tqdm(total=total, desc="Analyzing duplicates", unit="track") as pbar:
+        for i in range(total):
+            item = parsed_rows[i]
+            pbar.update(1)
 
-        current_group = [item1]
-
-        for j in range(i + 1, total):
-            item2 = parsed_rows[j]
-
-            # Since rows are sorted by duration, we can stop if difference is too large
-            # Allow 3 seconds difference (slightly generous)
-            if item2["duration"] - item1["duration"] > 3.0:
-                break
-
-            if item2["id"] in processed_ids:
+            if item["id"] in processed_ids:
                 continue
 
-            # Similarity check
-            matcher = SequenceMatcher(None, item1["fingerprint"], item2["fingerprint"])
+            group = _find_duplicate_group(item, parsed_rows, i, processed_ids)
 
-            # Quick check first
-            if matcher.quick_ratio() < 0.6:
-                continue
-
-            if matcher.ratio() > 0.80:
-                current_group.append(item2)
-                processed_ids.add(item2["id"])
-
-        if len(current_group) > 1:
-            processed_ids.add(item1["id"])
-            groups.append(current_group)
+            if len(group) > 1:
+                processed_ids.add(item["id"])
+                groups.append(group)
 
     return groups
