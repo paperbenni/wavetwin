@@ -26,8 +26,15 @@ def scan_phase(conn, search_dir, audio_extensions):
     print(f"Scanning {search_dir}...")
     count = 0
 
-    for root, _, files in os.walk(search_dir):
+    for root, dirs, files in os.walk(search_dir):
+        # Ignore hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+
         for name in files:
+            # Ignore hidden files
+            if name.startswith("."):
+                continue
+
             ext = os.path.splitext(name)[1].lower()
             if ext in audio_extensions:
                 path = os.path.abspath(os.path.join(root, name))
@@ -41,9 +48,9 @@ def scan_phase(conn, search_dir, audio_extensions):
     print(f"Found {count} audio files.")
 
 
-def process_files(conn):
+def process_files(conn, search_dir=None):
     """Process files that need fingerprinting."""
-    files = get_unprocessed_files(conn)
+    files = get_unprocessed_files(conn, search_dir)
     total = len(files)
     errors = 0
 

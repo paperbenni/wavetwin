@@ -72,7 +72,7 @@ def main():
 
         # Phase 1.5: Process Files (Fingerprinting)
         print("\n--- PHASE 2: Processing ---")
-        processing_errors = process_files(conn)
+        processing_errors = process_files(conn, search_dir)
 
         # Phase 2: Analyze
         print("\n--- PHASE 3: Analysis ---")

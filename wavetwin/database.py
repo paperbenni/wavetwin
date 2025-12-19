@@ -1,4 +1,5 @@
 import sqlite3
+import os
 
 
 def init_db(db_file):
@@ -30,11 +31,24 @@ def init_db(db_file):
     return conn
 
 
-def get_unprocessed_files(conn):
-    """Get all files that haven't been processed yet."""
+def get_unprocessed_files(conn, search_dir=None):
+    """Get all files that haven't been processed yet, optionally filtering by directory."""
     c = conn.cursor()
-    c.execute("SELECT id, path, size, mtime FROM tracks WHERE processed = 0")
-    return c.fetchall()
+
+    if search_dir:
+        # Ensure absolute path and proper wildcard for directory matching
+        abs_dir = os.path.abspath(search_dir)
+        # Use simple string matching for the directory prefix
+        # This is safer than LIKE/GLOB across different OSs/filesystems
+        query = "SELECT id, path, size, mtime FROM tracks WHERE processed = 0"
+        c.execute(query)
+        all_unprocessed = c.fetchall()
+
+        # Filter in Python to avoid SQLite pattern matching headaches with paths
+        return [row for row in all_unprocessed if row[1].startswith(abs_dir)]
+    else:
+        c.execute("SELECT id, path, size, mtime FROM tracks WHERE processed = 0")
+        return c.fetchall()
 
 
 def update_track_processing(conn, track_id, fingerprint, metadata):
