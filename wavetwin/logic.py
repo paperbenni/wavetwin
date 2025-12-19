@@ -111,12 +111,22 @@ def process_files(conn, search_dir=None):
         }
 
         # Process results as they complete with progress bar
-        with tqdm(total=total, desc="Processing files", unit="file") as pbar:
+        with tqdm(
+            total=total,
+            desc="Processing files",
+            unit="file",
+            bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+        ) as pbar:
             for future in as_completed(future_to_file):
                 track_id, path = future_to_file[future]
 
                 try:
-                    success, file_path, error_type, error_msg = future.result()
+                    success, file_path, filename, error_type, error_msg = (
+                        future.result()
+                    )
+
+                    # Show current file being processed
+                    pbar.set_postfix_str(f"Current: {filename[:40]}")
 
                     if not success:
                         tqdm.write(f"Error: [{error_type}] {file_path}")
@@ -243,9 +253,18 @@ def analysis_phase(conn):
     processed_ids = set()
     total = len(parsed_rows)
 
-    with tqdm(total=total, desc="Analyzing duplicates", unit="track") as pbar:
+    with tqdm(
+        total=total,
+        desc="Analyzing duplicates",
+        unit="track",
+        bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+    ) as pbar:
         for i in range(total):
             item = parsed_rows[i]
+
+            # Show current file being analyzed
+            current_name = item["data"][1]  # filename is at index 1
+            pbar.set_postfix_str(f"Current: {current_name[:40]}")
             pbar.update(1)
 
             if item["id"] in processed_ids:
