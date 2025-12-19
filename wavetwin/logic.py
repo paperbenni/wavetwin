@@ -20,7 +20,6 @@ MAX_WORKERS = 2
 PROGRESS_BAR_FORMAT = (
     "{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
 )
-FILENAME_MAX_LENGTH = 40
 
 # Similarity thresholds for duplicate detection
 SIMILARITY_THRESHOLD = 0.80
@@ -64,7 +63,7 @@ def scan_phase(conn, search_dir, audio_extensions):
                         stat = os.stat(path)
                         add_file_if_needed(conn, path, stat.st_size, stat.st_mtime)
                         count += 1
-                        pbar.set_postfix_str(f"Current: {name[:FILENAME_MAX_LENGTH]}")
+                        tqdm.write(f"Scanning: {name}")
                         pbar.update(1)
                     except OSError:
                         pbar.update(1)
@@ -136,8 +135,8 @@ def process_files(conn, search_dir=None):
                         future.result()
                     )
 
-                    # Show current file being processed
-                    pbar.set_postfix_str(f"Current: {filename[:FILENAME_MAX_LENGTH]}")
+                    # Log current file being processed
+                    tqdm.write(f"Processing: {filename}")
 
                     if not success:
                         tqdm.write(f"Error: [{error_type}] {file_path}")
@@ -273,9 +272,9 @@ def analysis_phase(conn):
         for i in range(total):
             item = parsed_rows[i]
 
-            # Show current file being analyzed
+            # Log current file being analyzed
             current_name = item["data"][1]  # filename is at index 1
-            pbar.set_postfix_str(f"Current: {current_name[:FILENAME_MAX_LENGTH]}")
+            tqdm.write(f"Analyzing: {current_name}")
             pbar.update(1)
 
             if item["id"] in processed_ids:
