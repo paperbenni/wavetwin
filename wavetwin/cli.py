@@ -83,7 +83,7 @@ def main():
         generate_report(duplicates, report_file, find_best_match)
 
         print(f"\nDone! Found {len(duplicates)} duplicate groups.")
-        if processing_errors and processing_errors > 0:
+        if processing_errors > 0:
             print(f"Warnings: {processing_errors} files failed to process.")
         print(f"Report saved to {report_file}")
 

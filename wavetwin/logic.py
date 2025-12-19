@@ -53,6 +53,7 @@ def process_files(conn, search_dir=None):
     files = get_unprocessed_files(conn, search_dir)
     total = len(files)
     errors = 0
+    failed_files = []
 
     if total == 0:
         print("No new files to process.")
@@ -73,9 +74,27 @@ def process_files(conn, search_dir=None):
             fingerprint_str = ",".join(map(str, fingerprint_list))
 
             update_track_processing(conn, track_id, fingerprint_str, metadata)
-        except Exception as e:
-            print(f"Error processing {path}: {e}")
+        except FileNotFoundError as e:
+            error_msg = f"File not found: {path}"
+            print(f"Error: {error_msg}")
+            failed_files.append((path, "FileNotFoundError", str(e)))
             errors += 1
+        except PermissionError as e:
+            error_msg = f"Permission denied: {path}"
+            print(f"Error: {error_msg}")
+            failed_files.append((path, "PermissionError", str(e)))
+            errors += 1
+        except Exception as e:
+            error_msg = f"Failed to process {path}: {type(e).__name__}: {e}"
+            print(f"Error: {error_msg}")
+            failed_files.append((path, type(e).__name__, str(e)))
+            errors += 1
+
+    if failed_files:
+        print("\n--- Processing Errors Summary ---")
+        for path, error_type, error_msg in failed_files:
+            print(f"  [{error_type}] {path}")
+            print(f"    {error_msg}")
 
     return errors
 
@@ -90,7 +109,7 @@ def find_best_match(group):
         # Retrieve sample_rate from extra data if available, otherwise default
         sample_rate = entry.get("sample_rate", 44100)
 
-        ext = os.path.splitext(path)[1].upper().replace(".", "")
+        ext = os.path.splitext(path)[1]
 
         score = get_quality_score(ext, size, bitrate, sample_rate)
 

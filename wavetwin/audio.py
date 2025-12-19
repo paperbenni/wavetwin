@@ -19,6 +19,29 @@ AUDIO_EXTENSIONS = {
     ".webm",
 }
 
+# Quality score constants
+SCORE_LOSSLESS = 50
+SCORE_OPUS = 35
+SCORE_AAC = 35
+SCORE_MP3 = 30
+SCORE_OGG = 25
+SCORE_OTHER = 10
+
+SCORE_BITRATE_HIGH = 30  # >= 320 kbps
+SCORE_BITRATE_GOOD = 25  # >= 256 kbps
+SCORE_BITRATE_MEDIUM = 20  # >= 192 kbps
+SCORE_BITRATE_LOW = 15  # >= 128 kbps
+SCORE_BITRATE_MIN = 5  # < 128 kbps
+
+SCORE_SAMPLE_RATE_HIGH = 20  # >= 96 kHz
+SCORE_SAMPLE_RATE_GOOD = 15  # >= 48 kHz
+SCORE_SAMPLE_RATE_MEDIUM = 10  # >= 44.1 kHz
+SCORE_SAMPLE_RATE_MIN = 5  # < 44.1 kHz
+
+# Size scoring: 1 point per 100MB, capped at 50 points
+SIZE_SCORE_DIVISOR = 100 * 1024 * 1024  # 100 MB
+SIZE_SCORE_MAX = 50
+
 
 def check_dependencies():
     """Check if required external tools are available."""
@@ -118,44 +141,50 @@ def get_quality_score(ext, size, bitrate, sample_rate):
     """Calculate quality score for audio files."""
     score = 0
 
+    # Normalize extension (remove dot and convert to lowercase)
+    ext_normalized = ext.lower().lstrip(".")
+
     # Format scoring (lossless gets bonus)
     lossless_formats = {"flac", "wav", "aiff", "aif"}
-    if ext.lower() in lossless_formats:
-        score += 50
-    elif ext.lower() in {"m4a", "aac"}:
-        score += 35
-    elif ext.lower() == "mp3":
-        score += 30
-    elif ext.lower() in {"ogg", "opus"}:
-        score += 25
+    if ext_normalized in lossless_formats:
+        score += SCORE_LOSSLESS
+    elif ext_normalized == "opus":
+        score += SCORE_OPUS
+    elif ext_normalized in {"m4a", "aac"}:
+        score += SCORE_AAC
+    elif ext_normalized == "mp3":
+        score += SCORE_MP3
+    elif ext_normalized == "ogg":
+        score += SCORE_OGG
     else:
-        score += 10
+        score += SCORE_OTHER
 
     # Bitrate scoring
     if bitrate:
         if bitrate >= 320000:
-            score += 30
+            score += SCORE_BITRATE_HIGH
         elif bitrate >= 256000:
-            score += 25
+            score += SCORE_BITRATE_GOOD
         elif bitrate >= 192000:
-            score += 20
+            score += SCORE_BITRATE_MEDIUM
         elif bitrate >= 128000:
-            score += 15
+            score += SCORE_BITRATE_LOW
         else:
-            score += 5
+            score += SCORE_BITRATE_MIN
 
     # Sample rate scoring
     if sample_rate:
         if sample_rate >= 96000:
-            score += 20
+            score += SCORE_SAMPLE_RATE_HIGH
         elif sample_rate >= 48000:
-            score += 15
+            score += SCORE_SAMPLE_RATE_GOOD
         elif sample_rate >= 44100:
-            score += 10
+            score += SCORE_SAMPLE_RATE_MEDIUM
         else:
-            score += 5
+            score += SCORE_SAMPLE_RATE_MIN
 
     # File size as last resort (larger is usually better)
-    score += min(size / (1024 * 1024), 20)  # Max 20 points for size
+    # 1 point per 100MB, capped at 50 points
+    score += min(size / SIZE_SCORE_DIVISOR, SIZE_SCORE_MAX)
 
     return score
