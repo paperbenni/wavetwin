@@ -91,7 +91,7 @@ def generate_report(groups, report_file, best_finder_func):
     }
 
     with open(report_file, "w") as f:
-        f.write(f"# Duplicate Audio Report\n")
+        f.write("# Duplicate Audio Report\n")
         f.write(f"Generated on: {datetime.datetime.now()}\n\n")
         f.write(f"Found {len(groups)} groups of duplicates.\n")
         f.write(f"Total potential space saving: {format_size(saved_space)}\n\n")

@@ -2,7 +2,6 @@
 import os
 import sys
 import argparse
-import logging
 
 try:
     from wavetwin.database import init_db

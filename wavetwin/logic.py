@@ -1,6 +1,4 @@
 import os
-import datetime
-from difflib import SequenceMatcher
 
 try:
     from wavetwin.audio import get_fingerprint, get_audio_metadata, get_quality_score
