@@ -22,15 +22,24 @@ AUDIO_EXTENSIONS = {
 
 def check_dependencies():
     """Check if required external tools are available."""
+    missing = []
+
     try:
         subprocess.run(["fpcalc", "-version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        sys.exit("Error: fpcalc (chromaprint) is required but not found in PATH")
+        missing.append("fpcalc (libchromaprint-tools)")
 
     try:
         subprocess.run(["ffprobe", "-version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        sys.exit("Error: ffprobe (ffmpeg) is required but not found in PATH")
+        missing.append("ffprobe (ffmpeg)")
+
+    if missing:
+        print("Error: Missing external dependencies.")
+        print(f"Required tools not found: {', '.join(missing)}")
+        print("\nPlease install them using your package manager:")
+        print("  sudo apt install libchromaprint-tools ffmpeg")
+        sys.exit(1)
 
 
 def get_fingerprint(filepath):
