@@ -16,6 +16,17 @@ from wavetwin.database import (
 # Number of worker threads for parallel processing
 MAX_WORKERS = 2
 
+# Progress bar configuration
+PROGRESS_BAR_FORMAT = (
+    "{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
+)
+FILENAME_MAX_LENGTH = 40
+
+# Similarity thresholds for duplicate detection
+SIMILARITY_THRESHOLD = 0.80
+SIMILARITY_QUICK_THRESHOLD = 0.6
+DURATION_TOLERANCE_SECONDS = 3.0
+
 
 def scan_phase(conn, search_dir, audio_extensions):
     """Scan directory for audio files and update database."""
@@ -35,7 +46,7 @@ def scan_phase(conn, search_dir, audio_extensions):
         total=total_files,
         desc="Scanning files",
         unit="file",
-        bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+        bar_format=PROGRESS_BAR_FORMAT,
     ) as pbar:
         for root, dirs, files in os.walk(search_dir):
             # Ignore hidden directories
@@ -53,7 +64,7 @@ def scan_phase(conn, search_dir, audio_extensions):
                         stat = os.stat(path)
                         add_file_if_needed(conn, path, stat.st_size, stat.st_mtime)
                         count += 1
-                        pbar.set_postfix_str(f"Current: {name[:40]}")
+                        pbar.set_postfix_str(f"Current: {name[:FILENAME_MAX_LENGTH]}")
                         pbar.update(1)
                     except OSError:
                         pbar.update(1)
@@ -115,7 +126,7 @@ def process_files(conn, search_dir=None):
             total=total,
             desc="Processing files",
             unit="file",
-            bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+            bar_format=PROGRESS_BAR_FORMAT,
         ) as pbar:
             for future in as_completed(future_to_file):
                 track_id, path = future_to_file[future]
@@ -126,7 +137,7 @@ def process_files(conn, search_dir=None):
                     )
 
                     # Show current file being processed
-                    pbar.set_postfix_str(f"Current: {filename[:40]}")
+                    pbar.set_postfix_str(f"Current: {filename[:FILENAME_MAX_LENGTH]}")
 
                     if not success:
                         tqdm.write(f"Error: [{error_type}] {file_path}")
@@ -257,14 +268,14 @@ def analysis_phase(conn):
         total=total,
         desc="Analyzing duplicates",
         unit="track",
-        bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+        bar_format=PROGRESS_BAR_FORMAT,
     ) as pbar:
         for i in range(total):
             item = parsed_rows[i]
 
             # Show current file being analyzed
             current_name = item["data"][1]  # filename is at index 1
-            pbar.set_postfix_str(f"Current: {current_name[:40]}")
+            pbar.set_postfix_str(f"Current: {current_name[:FILENAME_MAX_LENGTH]}")
             pbar.update(1)
 
             if item["id"] in processed_ids:
