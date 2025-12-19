@@ -387,8 +387,23 @@ def generate_report(groups, report_file):
             else:
                 f.write(f"**Quality:** {format_size(best_size)}\n\n")
 
-            f.write("| Keep | Filename | Format | Bitrate | Size | Duration | Path |\n")
-            f.write("|:---:|---|---|---|---|---|---|\n")
+            # Define fixed column widths
+            col_widths = {
+                "keep": 6,
+                "filename": 30,
+                "format": 8,
+                "bitrate": 10,
+                "size": 8,
+                "duration": 10,
+                "path": 40,
+            }
+
+            f.write(
+                f"| {'Keep':^{col_widths['keep']}} | {'Filename':^{col_widths['filename']}} | {'Format':^{col_widths['format']}} | {'Bitrate':^{col_widths['bitrate']}} | {'Size':^{col_widths['size']}} | {'Duration':^{col_widths['duration']}} | {'Path':^{col_widths['path']}} |\n"
+            )
+            f.write(
+                f"| {'':-^{col_widths['keep']}} | {'':-^{col_widths['filename']}} | {'':-^{col_widths['format']}} | {'':-^{col_widths['bitrate']}} | {'':-^{col_widths['size']}} | {'':-^{col_widths['duration']}} | {'':-^{col_widths['path']}} |\n"
+            )
 
             for entry in scored_files:
                 path, name, size, bitrate, dur = entry["data"]
@@ -396,8 +411,17 @@ def generate_report(groups, report_file):
                 br_str = f"{int(bitrate / 1000)} kbps" if bitrate else "Unknown"
                 keep_mark = "✅" if entry["data"] == best else "❌"
 
+                # Truncate long content and pad to fixed width
+                name_display = f"**{name}**"
+                if len(name_display) > col_widths["filename"]:
+                    name_display = f"**{name[: col_widths['filename'] - 7]}...**"
+
+                path_display = f"`{path}`"
+                if len(path_display) > col_widths["path"]:
+                    path_display = f"`{path[: col_widths['path'] - 10]}...`"
+
                 f.write(
-                    f"| {keep_mark} | **{name}** | {ext} | {br_str} | {format_size(size)} | {dur}s | `{path}` |\n"
+                    f"| {keep_mark:^{col_widths['keep']}} | {name_display:<{col_widths['filename']}} | {ext:<{col_widths['format']}} | {br_str:<{col_widths['bitrate']}} | {format_size(size):<{col_widths['size']}} | {f'{dur}s':<{col_widths['duration']}} | {path_display:<{col_widths['path']}} |\n"
                 )
 
             f.write("\n---\n\n")
