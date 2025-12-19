@@ -1,6 +1,6 @@
 # Wavetwin
 
-Remove duplicates from your music library using acoustic fingerprinting.
+Find and help remove duplicates from your music library using acoustic fingerprinting.
 
 ## Installation
 
@@ -20,12 +20,16 @@ wavetwin /path/to/music
 ## Usage
 
 ```bash
+# Basic usage
 uvx https://github.com/paperbenni/wavetwin.git /path/to/music
+
+# With options
+uvx https://github.com/paperbenni/wavetwin.git /path/to/music --db my_database.db --report my_report.md
 ```
 
 ## Requirements
 
-- `fpcalc` (chromaprint) - for audio fingerprinting
+- `fpcalc` (libchromaprint-tools) - for audio fingerprinting
 - `ffprobe` (ffmpeg) - for metadata extraction
 
 Install with:
@@ -45,5 +49,5 @@ brew install chromaprint ffmpeg
 - Acoustic fingerprinting for accurate duplicate detection
 - Resumable scanning (progress saved to database)
 - Quality-based recommendations
-- Detailed HTML reports
+- Detailed Markdown reports
 - Supports most audio formats
