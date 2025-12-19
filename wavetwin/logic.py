@@ -2,6 +2,7 @@ import os
 import datetime
 import json
 from difflib import SequenceMatcher
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from wavetwin.audio import get_fingerprint, get_audio_metadata, get_quality_score
 from wavetwin.database import (
@@ -10,6 +11,9 @@ from wavetwin.database import (
     add_file_if_needed,
     get_all_fingerprints,
 )
+
+# Number of worker threads for parallel processing
+MAX_WORKERS = 2
 
 
 def scan_phase(conn, search_dir, audio_extensions):
@@ -39,47 +43,79 @@ def scan_phase(conn, search_dir, audio_extensions):
     print(f"Found {count} audio files.")
 
 
+def _process_single_file(track_id, path, size, mtime, conn):
+    """Process a single file and return result."""
+    try:
+        fingerprint_list = get_fingerprint(path)
+        metadata = get_audio_metadata(path)
+
+        # Ensure metadata has all required fields
+        if "filename" not in metadata or not metadata["filename"]:
+            metadata["filename"] = os.path.basename(path)
+
+        # Convert fingerprint list to comma-separated string for storage
+        fingerprint_str = ",".join(map(str, fingerprint_list))
+
+        # Database writes are thread-safe (handled in database.py)
+        update_track_processing(conn, track_id, fingerprint_str, metadata)
+
+        return (True, path, None, None)
+    except FileNotFoundError as e:
+        return (False, path, "FileNotFoundError", str(e))
+    except PermissionError as e:
+        return (False, path, "PermissionError", str(e))
+    except Exception as e:
+        return (False, path, type(e).__name__, str(e))
+
+
 def process_files(conn, search_dir=None):
-    """Process files that need fingerprinting."""
+    """Process files that need fingerprinting with multithreading."""
     files = get_unprocessed_files(conn, search_dir)
     total = len(files)
     errors = 0
     failed_files = []
+    processed_count = 0
 
     if total == 0:
         print("No new files to process.")
         return 0
 
-    print(f"Processing {total} files...")
-    for i, (track_id, path, size, mtime) in enumerate(files, 1):
-        try:
-            print(f"[{i}/{total}] Analyzing: {os.path.basename(path)}")
-            fingerprint_list = get_fingerprint(path)
-            metadata = get_audio_metadata(path)
+    print(f"Processing {total} files with {MAX_WORKERS} workers...")
 
-            # Ensure metadata has all required fields
-            if "filename" not in metadata or not metadata["filename"]:
-                metadata["filename"] = os.path.basename(path)
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        # Submit all files for processing
+        future_to_file = {
+            executor.submit(_process_single_file, track_id, path, size, mtime, conn): (
+                track_id,
+                path,
+            )
+            for track_id, path, size, mtime in files
+        }
 
-            # Convert fingerprint list to comma-separated string for storage
-            fingerprint_str = ",".join(map(str, fingerprint_list))
+        # Process results as they complete
+        for future in as_completed(future_to_file):
+            track_id, path = future_to_file[future]
+            processed_count += 1
 
-            update_track_processing(conn, track_id, fingerprint_str, metadata)
-        except FileNotFoundError as e:
-            error_msg = f"File not found: {path}"
-            print(f"Error: {error_msg}")
-            failed_files.append((path, "FileNotFoundError", str(e)))
-            errors += 1
-        except PermissionError as e:
-            error_msg = f"Permission denied: {path}"
-            print(f"Error: {error_msg}")
-            failed_files.append((path, "PermissionError", str(e)))
-            errors += 1
-        except Exception as e:
-            error_msg = f"Failed to process {path}: {type(e).__name__}: {e}"
-            print(f"Error: {error_msg}")
-            failed_files.append((path, type(e).__name__, str(e)))
-            errors += 1
+            try:
+                success, file_path, error_type, error_msg = future.result()
+
+                print(
+                    f"[{processed_count}/{total}] Analyzed: {os.path.basename(file_path)}"
+                )
+
+                if not success:
+                    print(f"Error: [{error_type}] {file_path}")
+                    failed_files.append((file_path, error_type, error_msg))
+                    errors += 1
+
+            except Exception as e:
+                # This catches any unexpected errors in the worker thread
+                print(
+                    f"Error: Unexpected error processing {path}: {type(e).__name__}: {e}"
+                )
+                failed_files.append((path, type(e).__name__, str(e)))
+                errors += 1
 
     if failed_files:
         print("\n--- Processing Errors Summary ---")

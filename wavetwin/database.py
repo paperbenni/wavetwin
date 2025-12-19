@@ -1,10 +1,15 @@
 import sqlite3
 import os
+from threading import Lock
+
+
+# Global lock for database operations when used in multithreaded context
+_db_lock = Lock()
 
 
 def init_db(db_file):
     """Initialize SQLite database for storing fingerprints."""
-    conn = sqlite3.connect(db_file)
+    conn = sqlite3.connect(db_file, check_same_thread=False)
     c = conn.cursor()
 
     # Enable Write-Ahead Logging for concurrency/stability
@@ -52,26 +57,27 @@ def get_unprocessed_files(conn, search_dir=None):
 
 
 def update_track_processing(conn, track_id, fingerprint, metadata):
-    """Update track with fingerprint and metadata."""
-    c = conn.cursor()
-    c.execute(
-        """
-        UPDATE tracks 
-        SET fingerprint = ?, filename = ?, duration = ?, 
-            bitrate = ?, sample_rate = ?, codec = ?, processed = 1
-        WHERE id = ?
-    """,
-        (
-            fingerprint,
-            metadata["filename"],
-            metadata["duration"],
-            metadata["bitrate"],
-            metadata["sample_rate"],
-            metadata["codec"],
-            track_id,
-        ),
-    )
-    conn.commit()
+    """Update track with fingerprint and metadata. Thread-safe."""
+    with _db_lock:
+        c = conn.cursor()
+        c.execute(
+            """
+            UPDATE tracks 
+            SET fingerprint = ?, filename = ?, duration = ?, 
+                bitrate = ?, sample_rate = ?, codec = ?, processed = 1
+            WHERE id = ?
+        """,
+            (
+                fingerprint,
+                metadata["filename"],
+                metadata["duration"],
+                metadata["bitrate"],
+                metadata["sample_rate"],
+                metadata["codec"],
+                track_id,
+            ),
+        )
+        conn.commit()
 
 
 def add_file_if_needed(conn, filepath, size, mtime):
