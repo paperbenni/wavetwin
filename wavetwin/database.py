@@ -1,23 +1,6 @@
 import sqlite3
 
 
-AUDIO_EXTENSIONS = {
-    ".mp3",
-    ".m4a",
-    ".aac",
-    ".ogg",
-    ".opus",
-    ".flac",
-    ".wav",
-    ".aiff",
-    ".aif",
-    ".wma",
-    ".mp4",
-    ".3gp",
-    ".webm",
-}
-
-
 def init_db(db_file):
     """Initialize SQLite database for storing fingerprints."""
     conn = sqlite3.connect(db_file)

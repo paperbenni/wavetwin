@@ -3,6 +3,23 @@ import json
 import sys
 
 
+AUDIO_EXTENSIONS = {
+    ".mp3",
+    ".m4a",
+    ".aac",
+    ".ogg",
+    ".opus",
+    ".flac",
+    ".wav",
+    ".aiff",
+    ".aif",
+    ".wma",
+    ".mp4",
+    ".3gp",
+    ".webm",
+}
+
+
 def check_dependencies():
     """Check if required external tools are available."""
     try:
