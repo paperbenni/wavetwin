@@ -4,14 +4,23 @@ Remove duplicates from your music library using acoustic fingerprinting.
 
 ## Installation
 
+Run directly from the git repository with uvx:
+
 ```bash
-uv tool install wavetwin
+uvx https://github.com/paperbenni/wavetwin.git /path/to/music
+```
+
+Or install the tool:
+
+```bash
+uv tool install git+https://github.com/paperbenni/wavetwin.git
+wavetwin /path/to/music
 ```
 
 ## Usage
 
 ```bash
-wavetwin /path/to/music
+uvx https://github.com/paperbenni/wavetwin.git /path/to/music
 ```
 
 ## Requirements
