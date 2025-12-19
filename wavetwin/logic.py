@@ -45,10 +45,11 @@ def process_files(conn):
     """Process files that need fingerprinting."""
     files = get_unprocessed_files(conn)
     total = len(files)
+    errors = 0
 
     if total == 0:
         print("No new files to process.")
-        return
+        return 0
 
     print(f"Processing {total} files...")
     for i, (track_id, path, size, mtime) in enumerate(files, 1):
@@ -67,6 +68,9 @@ def process_files(conn):
             update_track_processing(conn, track_id, fingerprint_str, metadata)
         except Exception as e:
             print(f"Error processing {path}: {e}")
+            errors += 1
+
+    return errors
 
 
 def find_best_match(group):

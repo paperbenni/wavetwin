@@ -72,7 +72,7 @@ def main():
 
         # Phase 1.5: Process Files (Fingerprinting)
         print("\n--- PHASE 2: Processing ---")
-        process_files(conn)
+        processing_errors = process_files(conn)
 
         # Phase 2: Analyze
         print("\n--- PHASE 3: Analysis ---")
@@ -82,7 +82,10 @@ def main():
         print("\n--- PHASE 4: Reporting ---")
         generate_report(duplicates, report_file, find_best_match)
 
-        print(f"\nDone! Report saved to {report_file}")
+        print(f"\nDone! Found {len(duplicates)} duplicate groups.")
+        if processing_errors and processing_errors > 0:
+            print(f"Warnings: {processing_errors} files failed to process.")
+        print(f"Report saved to {report_file}")
 
     except KeyboardInterrupt:
         print("\n\n🛑 Process interrupted by user.")
