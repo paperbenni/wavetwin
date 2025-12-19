@@ -92,24 +92,6 @@ def get_all_fingerprints(conn):
     """Get all processed fingerprints for duplicate detection."""
     c = conn.cursor()
     c.execute(
-        "SELECT path, filename, size, duration, fingerprint FROM tracks WHERE processed = 1"
+        "SELECT id, path, filename, size, duration, fingerprint, bitrate, sample_rate FROM tracks WHERE processed = 1 ORDER BY duration"
     )
-    return c.fetchall()
-
-
-def get_duplicate_groups(conn):
-    """Get groups of files with identical fingerprints."""
-    c = conn.cursor()
-    c.execute("""
-        SELECT path, filename, size, duration, fingerprint, bitrate, sample_rate
-        FROM tracks 
-        WHERE processed = 1 AND fingerprint IN (
-            SELECT fingerprint 
-            FROM tracks 
-            WHERE processed = 1 
-            GROUP BY fingerprint 
-            HAVING COUNT(*) > 1
-        )
-        ORDER BY fingerprint
-    """)
     return c.fetchall()

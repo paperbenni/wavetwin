@@ -37,15 +37,16 @@ def get_fingerprint(filepath):
     """Generate acoustic fingerprint using fpcalc."""
     try:
         result = subprocess.run(
-            ["fpcalc", "-length", "120", "-json", filepath],
+            ["fpcalc", "-length", "120", "-raw", "-json", filepath],
             capture_output=True,
             text=True,
             check=True,
         )
         data = json.loads(result.stdout)
-        return data.get("fingerprint", "")
+        # Return fingerprint as a list of integers
+        return data.get("fingerprint", [])
     except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError):
-        return ""
+        return []
 
 
 def get_audio_metadata(filepath):
