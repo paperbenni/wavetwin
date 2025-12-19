@@ -31,7 +31,12 @@ def scan_phase(conn, search_dir, audio_extensions):
         and os.path.splitext(name)[1].lower() in audio_extensions
     )
 
-    with tqdm(total=total_files, desc="Scanning files", unit="file") as pbar:
+    with tqdm(
+        total=total_files,
+        desc="Scanning files",
+        unit="file",
+        bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+    ) as pbar:
         for root, dirs, files in os.walk(search_dir):
             # Ignore hidden directories
             dirs[:] = [d for d in dirs if not d.startswith(".")]
@@ -48,6 +53,7 @@ def scan_phase(conn, search_dir, audio_extensions):
                         stat = os.stat(path)
                         add_file_if_needed(conn, path, stat.st_size, stat.st_mtime)
                         count += 1
+                        pbar.set_postfix_str(f"Current: {name[:40]}")
                         pbar.update(1)
                     except OSError:
                         pbar.update(1)
@@ -72,13 +78,13 @@ def _process_single_file(track_id, path, size, mtime, conn):
         # Database writes are thread-safe (handled in database.py)
         update_track_processing(conn, track_id, fingerprint_str, metadata)
 
-        return (True, path, None, None)
+        return (True, path, os.path.basename(path), None, None)
     except FileNotFoundError as e:
-        return (False, path, "FileNotFoundError", str(e))
+        return (False, path, os.path.basename(path), "FileNotFoundError", str(e))
     except PermissionError as e:
-        return (False, path, "PermissionError", str(e))
+        return (False, path, os.path.basename(path), "PermissionError", str(e))
     except Exception as e:
-        return (False, path, type(e).__name__, str(e))
+        return (False, path, os.path.basename(path), type(e).__name__, str(e))
 
 
 def process_files(conn, search_dir=None):
