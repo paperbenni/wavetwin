@@ -3,6 +3,7 @@ import datetime
 import json
 from difflib import SequenceMatcher
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 from wavetwin.audio import get_fingerprint, get_audio_metadata, get_quality_score
 from wavetwin.database import (
@@ -21,24 +22,36 @@ def scan_phase(conn, search_dir, audio_extensions):
     print(f"Scanning {search_dir}...")
     count = 0
 
-    for root, dirs, files in os.walk(search_dir):
-        # Ignore hidden directories
-        dirs[:] = [d for d in dirs if not d.startswith(".")]
+    # First count total files for progress bar
+    total_files = sum(
+        1
+        for root, dirs, files in os.walk(search_dir)
+        for name in files
+        if not name.startswith(".")
+        and os.path.splitext(name)[1].lower() in audio_extensions
+    )
 
-        for name in files:
-            # Ignore hidden files
-            if name.startswith("."):
-                continue
+    with tqdm(total=total_files, desc="Scanning files", unit="file") as pbar:
+        for root, dirs, files in os.walk(search_dir):
+            # Ignore hidden directories
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
 
-            ext = os.path.splitext(name)[1].lower()
-            if ext in audio_extensions:
-                path = os.path.abspath(os.path.join(root, name))
-                try:
-                    stat = os.stat(path)
-                    add_file_if_needed(conn, path, stat.st_size, stat.st_mtime)
-                    count += 1
-                except OSError:
+            for name in files:
+                # Ignore hidden files
+                if name.startswith("."):
                     continue
+
+                ext = os.path.splitext(name)[1].lower()
+                if ext in audio_extensions:
+                    path = os.path.abspath(os.path.join(root, name))
+                    try:
+                        stat = os.stat(path)
+                        add_file_if_needed(conn, path, stat.st_size, stat.st_mtime)
+                        count += 1
+                        pbar.update(1)
+                    except OSError:
+                        pbar.update(1)
+                        continue
 
     print(f"Found {count} audio files.")
 
@@ -74,7 +87,6 @@ def process_files(conn, search_dir=None):
     total = len(files)
     errors = 0
     failed_files = []
-    processed_count = 0
 
     if total == 0:
         print("No new files to process.")
@@ -92,30 +104,28 @@ def process_files(conn, search_dir=None):
             for track_id, path, size, mtime in files
         }
 
-        # Process results as they complete
-        for future in as_completed(future_to_file):
-            track_id, path = future_to_file[future]
-            processed_count += 1
+        # Process results as they complete with progress bar
+        with tqdm(total=total, desc="Processing files", unit="file") as pbar:
+            for future in as_completed(future_to_file):
+                track_id, path = future_to_file[future]
 
-            try:
-                success, file_path, error_type, error_msg = future.result()
+                try:
+                    success, file_path, error_type, error_msg = future.result()
 
-                print(
-                    f"[{processed_count}/{total}] Analyzed: {os.path.basename(file_path)}"
-                )
+                    if not success:
+                        tqdm.write(f"Error: [{error_type}] {file_path}")
+                        failed_files.append((file_path, error_type, error_msg))
+                        errors += 1
 
-                if not success:
-                    print(f"Error: [{error_type}] {file_path}")
-                    failed_files.append((file_path, error_type, error_msg))
+                except Exception as e:
+                    # This catches any unexpected errors in the worker thread
+                    tqdm.write(
+                        f"Error: Unexpected error processing {path}: {type(e).__name__}: {e}"
+                    )
+                    failed_files.append((path, type(e).__name__, str(e)))
                     errors += 1
 
-            except Exception as e:
-                # This catches any unexpected errors in the worker thread
-                print(
-                    f"Error: Unexpected error processing {path}: {type(e).__name__}: {e}"
-                )
-                failed_files.append((path, type(e).__name__, str(e)))
-                errors += 1
+                pbar.update(1)
 
     if failed_files:
         print("\n--- Processing Errors Summary ---")
