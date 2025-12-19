@@ -3,21 +3,16 @@ import os
 import sys
 import argparse
 
-try:
-    from wavetwin.database import init_db
-    from wavetwin.audio import check_dependencies, AUDIO_EXTENSIONS
-    from wavetwin.logic import (
-        scan_phase,
-        process_files,
-        analysis_phase,
-        find_best_match,
-    )
-    from wavetwin.report import generate_report
-except ImportError:
-    from database import init_db
-    from audio import check_dependencies, AUDIO_EXTENSIONS
-    from logic import scan_phase, process_files, analysis_phase, find_best_match
-    from report import generate_report
+from wavetwin import __version__
+from wavetwin.database import init_db
+from wavetwin.audio import check_dependencies, AUDIO_EXTENSIONS
+from wavetwin.logic import (
+    scan_phase,
+    process_files,
+    analysis_phase,
+    find_best_match,
+)
+from wavetwin.report import generate_report
 
 
 def main():
@@ -25,6 +20,11 @@ def main():
         description="Robust Audio Duplicate Detector using acoustic fingerprinting (fpcalc/chromaprint).",
         epilog="Examples:\n  python3 script.py /mnt/music\n  python3 script.py /mnt/read_only_music --db my_scan.db --report duplicates.md",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     parser.add_argument(
         "directory",

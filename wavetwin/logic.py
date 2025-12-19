@@ -3,22 +3,13 @@ import datetime
 import json
 from difflib import SequenceMatcher
 
-try:
-    from wavetwin.audio import get_fingerprint, get_audio_metadata, get_quality_score
-    from wavetwin.database import (
-        get_unprocessed_files,
-        update_track_processing,
-        add_file_if_needed,
-        get_all_fingerprints,
-    )
-except ImportError:
-    from audio import get_fingerprint, get_audio_metadata, get_quality_score
-    from database import (
-        get_unprocessed_files,
-        update_track_processing,
-        add_file_if_needed,
-        get_all_fingerprints,
-    )
+from wavetwin.audio import get_fingerprint, get_audio_metadata, get_quality_score
+from wavetwin.database import (
+    get_unprocessed_files,
+    update_track_processing,
+    add_file_if_needed,
+    get_all_fingerprints,
+)
 
 
 def scan_phase(conn, search_dir, audio_extensions):

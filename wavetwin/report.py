@@ -1,10 +1,7 @@
 import os
 import datetime
 
-try:
-    from wavetwin.audio import format_size
-except ImportError:
-    from audio import format_size
+from wavetwin.audio import format_size
 
 
 def _calculate_savings(groups, best_finder_func):
